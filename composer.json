@@ -1,0 +1,5 @@
+{
+    "require": {
+        "lob/lob-php": "^1.7"
+    }
+}
