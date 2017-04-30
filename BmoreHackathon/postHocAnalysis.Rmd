@@ -1,0 +1,147 @@
+---
+title: "ProcessDeliveryAnalysis"
+date: "April 30, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load data, baltimore city stats, and do a join
+
+```{r cars}
+library(dplyr)
+library(ggmap)
+
+#default.data <- read.csv("defaultCasesOverServerAndZipcode.csv", sep="\t")
+default.data <- read.csv("defaultCasesOverServerAndZipcodeModifiedCaseCriteria.csv", sep="\t")
+default.data$DefendantZip <- as.factor(default.data$DefendantZip)
+service.data <- read.csv("serviceStatsOverServerAndZipcode.csv", sep="\t")
+
+bmore.stats <- data.frame(
+  zipcodes=factor(c(21207,21209, 21210, 21211,21212, 21213,21215,21214,21217,21216,21218,21223,21224, 21225,21226,21229,21231,21230 ,21239, 21251,21263,21287,21201,21202,21205)),
+  med.income=c(52253, 73577, 83051, 57572, 65450, 32317, 34885, 63412, 27382, 33857, 37959, 26342, 56997, 37992,  65625, 44485, 57071, 67132, 50809, NA, NA, NA, 30853, 31638, 24187))
+
+# for presentation, just show the relevant ones to paint our picture
+bmore.stats <- bmore.stats[c(6,7,9,11),]
+
+geo.coords <- read.csv("zipCodeGeoCoordLongLat.csv")
+geo.coords$ZIP <- as.factor(geo.coords$ZIP)
+bmore.stats <- inner_join(bmore.stats, geo.coords, by=c("zipcodes" = "ZIP"))
+
+default.data <- inner_join(default.data, bmore.stats['zipcodes'], by=c("DefendantZip" = "zipcodes"))
+default.data$DefendantZip <- as.factor(default.data$DefendantZip)
+service.data <- inner_join(service.data, bmore.stats['zipcodes'], by=c("DefendantZip" = "zipcodes"))
+service.data$DefendantZip <- as.factor(service.data$DefendantZip)
+```
+
+Plot an income map image
+```{r}
+qmap("Baltimore, MD", zoom=12) + geom_point(data=bmore.stats, aes(x=LNG, y=LAT, color=med.income, size=med.income))
+
+```
+
+## Visualizing defaulting stats
+
+
+Plot the raw number of defaults on a map
+```{r}
+default.result <- default.data %>% group_by(DefendantZip) %>% summarize(numberDefaultedCases = sum(numDefaults)) %>% inner_join(bmore.stats, by=c("DefendantZip" = "zipcodes")) %>% arrange(desc(numberDefaultedCases)) %>%  as.data.frame()
+
+qmap("Baltimore, MD", zoom=12) + geom_point(data=default.result, aes(x=LNG, y=LAT, color=numberDefaultedCases, size=numberDefaultedCases))
+
+```
+
+
+
+For each zip code, find the percentage of cases that are a default settlement.
+```{r, echo=FALSE}
+
+default.result <- default.data %>% group_by(DefendantZip) %>% summarize(percentDefault = sum(numDefaults)/sum(totalNumCases)) %>% inner_join(bmore.stats, by=c("DefendantZip" = "zipcodes")) %>% arrange(desc(percentDefault)) %>%  as.data.frame()
+
+```
+
+Plot the results
+```{r}
+ggplot(data=default.result) + geom_line(aes(x=1:nrow(default.result), y=percentDefault))
+```
+Plotting percent default by median income of the region
+```{r}
+ggplot(data=default.result) + geom_point(aes(x=med.income, y=percentDefault)) + labs(x="Median Income", y="Percentage of Defaulted Cases")
+```
+
+Plot the percentages on a map
+```{r}
+qmap("Baltimore, MD", zoom=12) + geom_point(data=default.result, aes(x=LNG, y=LAT, color=percentDefault, size=percentDefault))
+
+
+```
+Table of highest overall number of civil cases in general:
+```{r}
+library(gtable)
+library(grid)
+library(gridExtra)
+default.res3 <- default.data %>% group_by(DefendantZip) %>% summarize(totalNumberCases = sum(totalNumCases)) %>% arrange(desc(totalNumberCases))
+
+
+table <- tableGrob(default.res3, rows=NULL)
+title <- textGrob("Test", gp = gpar(fontsize = 10))
+padding <- unit(0.5,"line")
+table <- gtable_add_rows(
+  table, heights = grobHeight(title) + padding, pos = 0
+)
+table <- gtable_add_grob(
+  table, list(title),
+  t = 1, l = 1, r = ncol(table)
+)
+grid.newpage()
+grid.draw(table)
+
+
+```
+
+Find the how the case resolutions are distributed across regions, and also how the default cases are distributed.
+```{r}
+default.res2 <- default.data %>% group_by(DefendantZip) %>% summarize(totalNumDefaults = sum(numDefaults), totalNotDefaults = sum(totalNumCases) - sum(numDefaults)) %>% tidyr::gather("DefaultsResult", "Count", 2:3)
+#ggplot(data=default.res2, aes(DefendantZip)) + geom_bar(aes(weight = totalNumDefaults)) + labs(x="Zip Code", y="Number of Defaulted Cases")
+
+
+ggplot(data=default.res2, aes(x = DefendantZip, y = Count, fill = DefaultsResult)) + geom_bar(stat="identity") + scale_fill_discrete(name="Default Case Breakdown",labels=c("Case Not Defaulted", "Case Defaulted"))
+
+```
+
+
+## Visualizing service stats
+
+Show the percentage of processes that are actually served for each zip code.
+```{r, echo=FALSE}
+
+service.result <- service.data %>% group_by(DefendantZip) %>% summarize(percentServed = sum(numSV)/sum(totalNumCases)) %>%
+inner_join(bmore.stats, by=c("DefendantZip" = "zipcodes")) %>% arrange(percentServed) %>%  as.data.frame()
+
+```
+
+```{r}
+ggplot(data=service.result) + geom_line(aes(x=1:nrow(service.result), y=percentServed))
+```
+
+Plotting area percentage of processes served as function of med income
+```{r}
+ggplot(data=service.result) + geom_point(aes(x=med.income, y=percentServed)) + labs(x="Median Income", y="Percentage of Processes Served")
+```
+
+
+Find the how the case resolutions are distributed across regions, and also how the default cases are distributed.
+```{r}
+service.res2 <- service.data %>% group_by(DefendantZip) %>% summarize(totalNumServed = sum(numSV), totalNotServed = sum(totalNumCases) - sum(numSV)) %>% tidyr::gather("ServiceResult", "Count", 2:3)
+# ggplot(data=service.res2, aes(DefendantZip)) + geom_bar(aes(weight = totalNumServed)) + labs(x="Zip Code", y="Number of processes served")
+ggplot(data=service.res2, aes(x = DefendantZip, y = Count, fill = ServiceResult)) + geom_bar(stat="identity")
+```
+
+Plot the percentages on a map
+```{r}
+qmap("Baltimore, MD", zoom=12) + geom_point(data=service.result, aes(x=LNG, y=LAT, color=percentServed, size=percentServed))
+
+
+```
