@@ -12,7 +12,8 @@ AND case_information.CaseStatus = 'ACTIVE'
 AND hearings_set.SetText = 'TRIAL SET FOR'
 AND service.Outcome = 'SV'
 AND related_person.Connection = 'DEFENDANT'
-AND (related_person.Zip = '21217' OR related_person.Zip = '21215')
+AND (related_person.Zip = '21217' OR related_person.Zip = '21215' OR related_person.Zip = '21213' OR related_person.Zip = '21218')
+AND ClaimType = 'CONTRACT'
 AND case_information.CaseNumber NOT IN (SELECT CaseNumber FROM postcard)
 LIMIT 1";
 
