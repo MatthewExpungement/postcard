@@ -173,8 +173,8 @@ function sendPostcard($casenumber,$name,$address,$city,$state,$zip,$plaintiff,$c
 </section>
 <?php
 	//echo "\r\n Postcard will arrive on " . $postcard['expected_delivery_date'];
-	//addPostcard($casenumber,$postcard['expected_delivery_date']);
-	echo sleep(5);
+	addPostcard($casenumber,$postcard['expected_delivery_date']);
+	echo sleep(7);
 	//echo "<br>";
 	//echo $postcard['thumbnails'][0]['large'];
 	?>
