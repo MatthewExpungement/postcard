@@ -1,7 +1,7 @@
 # Civil Case Reminder
 Sends postcards to Baltimore City residents at risk of default judgment
 
-##Usage
+## Usage
 The purpose of the program is to pull all the Baltimore City cases coming up where
 - The defendant has been served
 - The case is a contract case
